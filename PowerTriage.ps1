@@ -235,11 +235,11 @@ function Get-Evtx {
     }
 }
 
-#Obtención de procesos
+#ObtenciÃ³n de procesos
 Get-ProcessAndHashes
 Print-ProcessTree | Out-File -Force $FolderCreation\ProcessInformation\ProcessTree.txt
 
-#Obtencion de Eventos de sistema: Aplicación, Sistema, Seguridad, Sysmon, Tareas Programadas, Powershell Operational
+#Obtencion de Eventos de sistema: AplicaciÃ³n, Sistema, Seguridad, Sysmon, Tareas Programadas, Powershell Operational
 Get-Evtx
 
 #comandos powershell de todos los usuarios
@@ -394,8 +394,8 @@ function Zip-Results {
     Write-Host "Running task 20 of 20" -ForegroundColor Yellow
     Write-Host "Write results to $FolderCreation.zip...`n"
     Compress-Archive -Force -LiteralPath $FolderCreation -DestinationPath "$FolderCreation.zip"
-    #delete colleted folder
-    #Remove-Item -Path $FolderCreation -Recurse
+    delete colleted folder
+    Remove-Item -Path $FolderCreation -Recurse
 }
 
 Zip-Results
