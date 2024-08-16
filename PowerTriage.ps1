@@ -4,7 +4,7 @@
 	
 	It's recommended to run this script with administrative privileges to get more Artifacts. Nevertheless, if not possible, some artificats will be collected.
 
-    The collected information is saved in an output directory in the current folder, this is by creating a folder named 'DFIR-_hostname_-_year_-_month_-_date_'. This folder is zipped at the end to enable easy Collecting.
+    The collected information is saved in an output directory in the current folder, this is by creating a folder named 'PowerTriage-_hostname_-_year_-_month_-_date_'. This folder is zipped at the end to enable easy Collecting.
     
 #>
 clear
@@ -60,11 +60,16 @@ Write-Host "You can specify the output directory if you want, OTHERWISE a direct
 Write-Host "==========================================================================================================================================`n" -ForegroundColor Yellow
 #Write-Host "Example: C:\PowerTriage`n"
 
-
+############################################################################################
+#                                     IMPORTANT!!!                                         #
+#                                                                                          #
+# Please, comment this line if you're running this script via EDR/XDR or remote command!   #
+#                                                                                          #
+############################################################################################
 $folder = Read-Host "Folder to save the artifacts (You can leave it empty)"
 
 If ($folder){
-    $path = "C:\"
+    $path = $folder
     $ExecutionTime = $(get-date -f yyyyMMdd_HHmmsstt)
     Write-Host "Running task 1 of 20" -ForegroundColor Yellow
     Write-Host "Creating output directory...`n"
@@ -77,8 +82,7 @@ If ($folder){
     Start-Sleep -Seconds 3
    
 }else{
-   # $path = "C:\"
-    $path = $pwd
+    $path = "C:\"
     $ExecutionTime = $(get-date -f yyyyMMdd_HHmmsstt)
     Write-Host "Running task 1 of 20" -ForegroundColor Yellow
     Write-Host "Creating output directory...`n"
@@ -130,7 +134,7 @@ function Get-ProcessAndHashes {
     New-Item -Path $ProcessFolder -ItemType Directory -Force | Out-Null
     $UniqueProcessHashOutput = "$ProcessFolder\UniqueProcessHash.csv"
     $ProcessListOutput = "$ProcessFolder\ProcessList.csv"
-	$CSVExportLocation = "$CSVOutputFolder\Processes.csv"
+	$CSVExportLocation = "$FolderCreation\Processes.csv"
 
     $processes_list = @()
     foreach ($process in (Get-WmiObject Win32_Process | Select-Object Name, ExecutablePath, CommandLine, ParentProcessId, ProcessId))
@@ -394,8 +398,14 @@ function Zip-Results {
     Write-Host "Running task 20 of 20" -ForegroundColor Yellow
     Write-Host "Write results to $FolderCreation.zip...`n"
     Compress-Archive -Force -LiteralPath $FolderCreation -DestinationPath "$FolderCreation.zip"
-    delete colleted folder
     Remove-Item -Path $FolderCreation -Recurse
 }
 
 Zip-Results
+
+Write-Host "===============================================================================`n" -ForegroundColor Yellow
+Write-Host "                              All tasks done                                   `n" -ForegroundColor Yellow
+Write-Host "                      Good luck in your investigation!!                        `n" -ForegroundColor Yellow
+Write-Host "`n"
+Write-Host "PowerTriage Github: https://github.com/jdangosto - Jesus Angosto (jdangosto)   `n" -ForegroundColor Yellow
+Write-Host "===============================================================================`n" -ForegroundColor Yellow
