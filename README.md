@@ -6,7 +6,7 @@ Powertriage is a DFIR Powershell script to perform a live adquisition of artifac
 
 PowerTriage collects information from multiple sources, the output by default is in "C:\" folder but you can set an specific folder to perform the adquisition, the folder will be named as 'PowerTriage-hostname-yearmonthdate_hhmmss'. This folder will be zipped once the script finish (and the original folder will be delete), so that zip file could be remotely collected.
 PowerTriage script collects the following artifacts:
-**__Functions--**
+**Functions**
 - System Info
 - Network Info:
 	- Ip information (All interfaces)
