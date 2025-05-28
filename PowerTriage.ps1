@@ -1,18 +1,32 @@
 <#
+
+
+
 .DESCRIPTION
     PowerTriage is a script to perform incident response via PowerShell on compromised devices with an Windows Operating System (Workstation & Server).  
 	
 	It's recommended to run this script with administrative privileges to get more Artifacts. Nevertheless, if not possible, some artificats will be collected.
 
     The collected information is saved in an output directory in the current folder, this is by creating a folder named 'PowerTriage-_hostname_-_year_-_month_-_date_'. This folder is zipped at the end to enable easy Collecting.
+
+
+.NOTES
+Requires administrative privileges to run.
+Creates an output directory with the current date and hostname.
     
 #>
+
+[CmdletBinding()]
+Param (
+    [Parameter(Mandatory=$false)]
+    [switch]$folder
+)
 clear
 
 #Variable to hide error messages when Recent Items Function is executed
 $ErrorActionPreference = "SilentlyContinue"
 
-$Version = '1.0'
+$Version = '1.5'
 $ASCIIBanner = @"
  ____                       _____     _                  
 |  _ \ _____      _____ _ _|_   _| __(_) __ _  __ _  ___ 
@@ -24,8 +38,7 @@ $ASCIIBanner = @"
 Write-Host $ASCIIBanner
 Write-Host "PowerTriage is a script to perform incident response via PowerShell on compromised devices with an Windows Operating System (Workstation & Server)." 
 Write-Host "Version: $Version"
-Write-Host "By twitter: @jdangosto, Github: https://github.com/jdangosto - Jesus Angosto (jdangosto)"
-
+Write-Host "By twitter 'X': @jdangosto, Github: https://github.com/jdangosto - Jesus Angosto (jdangosto)"
 Write-Host "=================================================================================================================================================`n"
 
 #Check Admin Privileges
@@ -34,44 +47,21 @@ $IsAdmin = ([Security.Principal.WindowsPrincipal] `
         [Security.Principal.WindowsIdentity]::GetCurrent() `
 ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-# Self-elevate the script if required
-#if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')) {
-# if ([int](Get-CimInstance -Class Win32_OperatingSystem | Select-Object -ExpandProperty BuildNumber) -ge 6000) {
-#  $CommandLine = "-File `"" + $MyInvocation.MyCommand.Path + "`" " + $MyInvocation.UnboundArguments
-#  Start-Process -FilePath PowerShell.exe -Verb Runas -ArgumentList $CommandLine
-#  Exit
-# }
-#}
 
 if ($IsAdmin) {
     Write-Host "DFIR Session starting as Administrator...`n"
 }
 else {
     Write-Host "No Administrator session detected. For the best performance run as Administrator. Not all items can be collected...`n" -ForegroundColor Red
-    Start-Sleep -Seconds 3
-    Write-Host "DFIR Session starting...`n`n"
+    #Start-Sleep -Seconds 3
+    Exit
 }
 
-#Seleccionar directorio de salida 
-
-Write-Host "README: " -ForegroundColor Yellow
-Write-Host "==========================================================================================================================================`n" -ForegroundColor Yellow
-Write-Host "You can specify the output directory if you want, OTHERWISE a directory will be created in the SAME LOCATION where this script is running.`n" -ForegroundColor Yellow
-Write-Host "==========================================================================================================================================`n" -ForegroundColor Yellow
-#Write-Host "Example: C:\PowerTriage`n"
-
-############################################################################################
-#                                     IMPORTANT!!!                                         #
-#                                                                                          #
-# Please, comment this line if you're running this script via EDR/XDR or remote command!   #
-#                                                                                          #
-############################################################################################
-$folder = Read-Host "Folder to save the artifacts (You can leave it empty)"
 
 If ($folder){
     $path = $folder
     $ExecutionTime = $(get-date -f yyyyMMdd_HHmmsstt)
-    Write-Host "Running task 1 of 20" -ForegroundColor Yellow
+    Write-Host "Running task 1 of 26" -ForegroundColor Yellow
     Write-Host "Creating output directory...`n"
     $FolderCreation = "$path\PowerTriage-$env:computername-$ExecutionTime" 
     Write-Host $FolderCreation
@@ -79,62 +69,74 @@ If ($folder){
     Write-Host "==========================================================================================================================================`n" -ForegroundColor Green
     Write-Host "                               Output directory created: $FolderCreation...`n" -ForegroundColor Green
     Write-Host "==========================================================================================================================================`n" -ForegroundColor Green
-    Start-Sleep -Seconds 3
+   # Start-Sleep -Seconds 3
    
 }else{
     $path = "C:\"
     $ExecutionTime = $(get-date -f yyyyMMdd_HHmmsstt)
-    Write-Host "Running task 1 of 20" -ForegroundColor Yellow
+    Write-Host "Running task 1 of 26" -ForegroundColor Yellow
     Write-Host "Creating output directory...`n"
     $FolderCreation = "$path\PowerTriage-$env:computername-$ExecutionTime"
     Write-Host $FolderCreation
     mkdir -Force $FolderCreation | Out-Null
-     Write-Host "==========================================================================================================================================`n" -ForegroundColor Green
+   
+    Write-Host "==========================================================================================================================================`n" -ForegroundColor Green
     Write-Host "                               Output directory created: $FolderCreation...`n" -ForegroundColor Green
     Write-Host "==========================================================================================================================================`n" -ForegroundColor Green
-    Start-Sleep -Seconds 3
+   # Start-Sleep -Seconds 3
    
 }
 
+
+#System Info
+Write-Host "Running task 2 of 26" -ForegroundColor Yellow
+Write-Host "Collecting System Information...`n"
+ mkdir -Force $FolderCreation\System\ | Out-Null
+Get-WmiObject -Class Win32_ComputerSystem | Select-Object Manufacturer, Model, TotalPhysicalMemory, NumberOfLogicalProcessors | Out-File -FilePath $FolderCreation\System\system_info.txt
+
 #Ip del sistema
-Write-Host "Running task 2 of 20" -ForegroundColor Yellow
+Write-Host "Running task 3 of 26" -ForegroundColor Yellow
 Write-Host "Collecting IP Address...`n"
-Get-NetIPAddress | Out-File -FilePath $FolderCreation\ip_info.txt
+ mkdir -Force $FolderCreation\Network\ | Out-Null
+Get-NetIPAddress | Out-File -FilePath $FolderCreation\Network\ip_info.txt
 
 #Conexiones abiertas y establecidas
-Write-Host "Running task 3 of 20" -ForegroundColor Yellow
+Write-Host "Running task 4 of 26" -ForegroundColor Yellow
 Write-Host "Collecting open and stablished TCP conecctions...`n"
-Get-NetTCPConnection -state Established | Out-File -FilePath $FolderCreation\TCP_Stablished_Connections.txt
+Get-NetTCPConnection -state Established | Out-File -FilePath $FolderCreation\Network\TCP_Stablished_Connections.txt
 
 #Listado de Shadow Copies
-Write-Host "Running task 4 of 20" -ForegroundColor Yellow
-write-host "Collecting List of existing shadow copies...`n"
-Get-CimInstance Win32_ShadowCopy | Out-File -FilePath $FolderCreation\Shadow_Copies_list.txt
+WriteLog -Level "INFO" Write-Host "Running task 5 of 26" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "Collecting List of existing shadow copies...`n"
+Get-CimInstance Win32_ShadowCopy | Out-File -FilePath $FolderCreation\System\Shadow_Copies_list.txt
 
 #persistencia en Autorun
-Write-Host "Running task 4 of 20" -ForegroundColor Yellow
-write-host "Collecting Autorun info...`n"
-Get-CimInstance Win32_StartupCommand | Select-Object Name, command, Location, User | Format-List | Out-File -Force $FolderCreation\Autoruns.txt
+WriteLog -Level "INFO" Write-Host "Running task 6 of 26" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "Collecting Autorun info...`n"
+Get-CimInstance Win32_StartupCommand | Select-Object Name, command, Location, User | Format-List | Out-File -Force $FolderCreation\System\Autoruns.txt
 
 #Usuarios activos
-Write-Host "Running task 5 of 20" -ForegroundColor Yellow
-write-host "Collecting Active user/s on system...`n"
-query user | Out-File -FilePath $FolderCreation\Active_users.txt
+WriteLog -Level "INFO" Write-Host "Running task 7 of 26" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "Collecting Active user/s on system...`n"
+ mkdir -Force $FolderCreation\Users\ | Out-Null
+query user | Out-File -FilePath $FolderCreation\Users\Active_users.txt
 
 #Usuarios locales
-Write-Host "Running task 6 of 20" -ForegroundColor Yellow
-write-host "Collecting local users...`n"
-Get-LocalUser | format-table | Out-File -FilePath $FolderCreation\Local_Users.txt
+WriteLog -Level "INFO" Write-Host "Running task 8 of 26" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "Collecting local users...`n"
+Get-LocalUser | format-table | Out-File -FilePath $FolderCreation\Users\Local_Users.txt
+#Usuarios obtenidos de consulta al registro con SIDs
+Get-ChildItem -Path "registry::HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList" | Out-File -Force -FilePath $FolderCreation\Users\Users_full_regedit.txt
 
 
 function Get-ProcessAndHashes {
-    Write-Host "Running task 7 of 20" -ForegroundColor Yellow
-    Write-Host "Collecting Active Processes...`n"
+   Write-Host "Running task 9 of 26" -ForegroundColor Yellow
+   Write-Host "Collecting Active Processes...`n"
     $ProcessFolder = "$FolderCreation\ProcessInformation"
     New-Item -Path $ProcessFolder -ItemType Directory -Force | Out-Null
     $UniqueProcessHashOutput = "$ProcessFolder\UniqueProcessHash.csv"
     $ProcessListOutput = "$ProcessFolder\ProcessList.csv"
-	$CSVExportLocation = "$FolderCreation\Processes.csv"
+	$CSVExportLocation = "$ProcessFolder\Processes.csv"
 
     $processes_list = @()
     foreach ($process in (Get-WmiObject Win32_Process | Select-Object Name, ExecutablePath, CommandLine, ParentProcessId, ProcessId))
@@ -162,8 +164,8 @@ function Get-ProcessAndHashes {
 
 function Print-ProcessTree() { 
 
-  Write-Host "Running task 8 of 20" -ForegroundColor Yellow
-  Write-Host "Collecting Process Tree (Parent & Child)...`n"
+ Write-Host "Running task 10 of 26" -ForegroundColor Yellow
+ Write-Host "Collecting Process Tree (Parent & Child)...`n"
 
     function Get-ProcessAndChildProcesses($Level, $Process) { 
 
@@ -218,8 +220,8 @@ function Print-ProcessTree() {
 } 
 
 function Get-Evtx {
-    Write-Host "Running task 9 of 20" -ForegroundColor Yellow
-    Write-Host "Collecting System Events(evtx) Files...`n"
+   Write-Host "Running task 11 of 26" -ForegroundColor Yellow
+   Write-Host "Collecting System Events(evtx) Files...`n"
     $EventViewer = "$FolderCreation\EventsLogs"
     mkdir -Force $EventViewer | Out-Null
     $evtxPath = "C:\Windows\System32\winevt\Logs"
@@ -248,10 +250,10 @@ Get-Evtx
 
 #comandos powershell de todos los usuarios
 function PowerShell_Commands{
- Write-Host "Running task 10 of 20" -ForegroundColor Yellow
- Write-Host "Collecting Console Powershell History (all users)...`n"
+Write-Host "Running task 12 of 26" -ForegroundColor Yellow
+Write-Host "Collecting Console Powershell History (all users)...`n"
     $PowershellConsoleHistory = "$FolderCreation\PowerShellHistory"
-    #Write-Host "Directorio: " $PowershellConsoleHistory
+    #WriteLog -Level "INFO" Write-Host "Directorio: " $PowershellConsoleHistory
     # Directorio de los usuarios
     
     $usersDirectory = "C:\Users"
@@ -273,26 +275,26 @@ function PowerShell_Commands{
 PowerShell_Commands
 
 #Tareas Programadas
-Write-Host "Running task 11 of 20" -ForegroundColor Yellow
-Write-Host "Collecting Schedule Tasks and Tasks run info...`n"
+WriteLog -Level "INFO" Write-Host "Running task 13 of 26" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "Collecting Schedule Tasks and Tasks run info...`n"
 $ScheduleFolder = "$FolderCreation\ScheduleTask"
 mkdir -Force $ScheduleFolder | Out-Null
 Get-ScheduledTask | Where-Object {$_.State -ne "Disabled"} | Format-List | Out-File -Force -FilePath $ScheduleFolder\ScheduleTask_list.txt
-Write-Host "Running task 12 of 20" -ForegroundColor Yellow
-Write-Host "Collecting Schedule Tasks Run Info...`n"
+WriteLog -Level "INFO" Write-Host "Running task 14 of 26" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "Collecting Schedule Tasks Run Info...`n"
 Get-ScheduledTask | Where-Object {$_.State -ne "Disabled"} | Get-ScheduledTaskInfo | Out-File -Force -FilePath $ScheduleFolder\ScheduleTask_RunInfo.txt
 
 #Servicios
-Write-Host "Running task 13 of 20" -ForegroundColor Yellow
-Write-Host "Collecting running services...`n"
-Get-Service | Where-Object {$_.Status -eq "Running"} | format-list | Out-file -Force -FilePath $FolderCreation\Services_Running.txt
+WriteLog -Level "INFO" Write-Host "Running task 15 of 26" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "Collecting running services...`n"
+Get-Service | Where-Object {$_.Status -eq "Running"} | format-list | Out-file -Force -FilePath $FolderCreation\System\Services_Running.txt
 
 
 #PowerShell Console History todos los usuarios
 
 function Get-PowershellHistory {
-    Write-Host "Running task 14 of 20" -ForegroundColor Yellow
-    Write-Host "Collecting Console Powershell History All Users...`n"
+   Write-Host "Running task 16 of 26" -ForegroundColor Yellow
+   Write-Host "Collecting Console Powershell History All Users...`n"
     $PowershellConsoleHistory = "$FolderCreation\PowerShellHistory"
     # Specify the directory where user profiles are stored
     $usersDirectory = "C:\Users"
@@ -313,10 +315,10 @@ Get-PowershellHistory
 
 #Elementos Recientes
 function RecentFiles{
- Write-Host "Running task 15 of 20" -ForegroundColor Yellow
- Write-Host "Collecting Recent Items (all users)...`n"
+Write-Host "Running task 17 of 26" -ForegroundColor Yellow
+Write-Host "Collecting Recent Items (all users)...`n"
     $Recent = "$FolderCreation\Recent_Items"
-    #Write-Host "Directorio: " $Recent
+    #WriteLog -Level "INFO" Write-Host "Directorio: " $Recent
     # Directorio de los usuarios
     #mkdir -Force $Recent | Out-Null
     $usersDirectory = "C:\Users"
@@ -325,11 +327,11 @@ function RecentFiles{
     foreach ($userDir in $userDirectories) {
         $userName = $userDir.Name
         $RecentFilePath = Join-Path -Path $userDir.FullName -ChildPath "AppData\Roaming\Microsoft\Windows\Recent\*"
-        #Write-Host $RecentFilePath
-        #Write-Host $userName
+        #WriteLog -Level "INFO" Write-Host $RecentFilePath
+        #WriteLog -Level "INFO" Write-Host $userName
         $origen = $RecentFilePath
         $destino = "$Recent\$userName"
-        #Write-Host $origen "--" $destino
+        #WriteLog -Level "INFO" Write-Host $origen "--" $destino
         
             Copy-Item "$origen" -Destination "$destino"
         }
@@ -339,8 +341,8 @@ RecentFiles
 
 #ActivitiesCache all Users
 function ActivitiesCache{
- Write-Host "Running task 16 of 20" -ForegroundColor Yellow
- Write-Host "Collecting Recent Items (all users)...`n"
+Write-Host "Running task 18 of 26" -ForegroundColor Yellow
+Write-Host "Collecting Recent Items (all users)...`n"
     $Recent = "$FolderCreation\Activities_Cache"
     $usersDirectory = "C:\Users"
     # Listado de directorio de usuarios en C:\Users
@@ -349,15 +351,15 @@ function ActivitiesCache{
    
         $userName = $userDir.Name
         $RecentFilePath = Join-Path -Path $userDir.FullName -ChildPath "AppData\Local\ConnectedDevicesPlatform\*"
-        #Write-Host $RecentFilePath
-        #Write-Host $userName
+        #WriteLog -Level "INFO" Write-Host $RecentFilePath
+        #WriteLog -Level "INFO" Write-Host $userName
         $origen = $RecentFilePath
         $destino = "$Recent\$userName"
-        #Write-Host $origen "--" $destino
+        #WriteLog -Level "INFO" Write-Host $origen "--" $destino
       try{
             Copy-Item "$origen" -Destination "$destino" -Force -Recurse
        }
-       catch{ Write-Host "User $userName hasn't ActivitiesCache file"}
+       catch{Write-Host "User $userName hasn't ActivitiesCache file"}
 
         }
 }
@@ -365,8 +367,8 @@ ActivitiesCache
 
 #Copia de Prefecth
 function CopyPrefetch{
-  Write-Host "Running task 17 of 20" -ForegroundColor Yellow
-  Write-Host "Collecting Prefetch...`n"
+ Write-Host "Running task 19 of 26" -ForegroundColor Yellow
+ Write-Host "Collecting Prefetch...`n"
   $origen = "C:\Windows\Prefetch"
   $destino = "$FolderCreation\Prefetch"
   Copy-Item -Path "$origen" -Destination "$destino" -Force -Recurse
@@ -376,8 +378,8 @@ CopyPrefetch
 #RecycleBin All Users
 function RecycleBin{
 
-    Write-Host "Running task 18 of 20" -ForegroundColor Yellow
-    Write-Host "Collecting Recycle.Bin (all users)...`n"
+   Write-Host "Running task 20 of 26" -ForegroundColor Yellow
+   Write-Host "Collecting Recycle.Bin (all users)...`n"
     $origen = "C:\`$Recycle.Bin"
     $destino = "$FolderCreation\RecycleBin"
     Copy-Item -Path "$origen" -Destination "$destino" -Force -Recurse
@@ -386,26 +388,294 @@ function RecycleBin{
 RecycleBin
 
 function Get-DNS {
-    Write-Host "Running task 19 of 20" -ForegroundColor Yellow
-    Write-Host "Collecting DNS Cache..."
-    $destino = "$FolderCreation\DNSCache.txt"
+   Write-Host "Running task 21 of 26" -ForegroundColor Yellow
+   Write-Host "Collecting DNS Cache...`n"
+    $destino = "$FolderCreation\Network\DNSCache.txt"
     Get-DnsClientCache | Format-List | Out-File -Force -FilePath $destino
 	
 }
 Get-DNS
 
+
+function Installed_Software{
+   Write-Host "Running task 22 of 26" -ForegroundColor Yellow
+   Write-Host "Collegting Installed Software...`n"
+    $destino = "$FolderCreation\Installed_Software"
+    Get-WmiObject -Class Win32_Product | Select-Object -Property Name, Version, InstallDate | Sort-Object Name | Out-File $destino\Win32_Product_Software.txt
+    Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Select-Object DisplayName, DisplayVersion, InstallDate | Sort-Object DisplayName | Out-File $destino\Software_with_Unistall.txt
+
+
+}
+
+
+#### COMMON BROWSERS
+
+function CheckAndCloseBrowsers {
+    # Nombres de los procesos de los navegadores
+    $browsers = @("msedge", "firefox", "brave", "chrome", "opera")
+
+     Write-Host "*******************************************************************************`n" -ForegroundColor Yellow
+     Write-Host "                     Cheking if any Browser is running...                      `n" -ForegroundColor Yellow
+     Write-Host "`n"
+     Write-Host "            If it is open, it will be closed to collect artifacts              `n" -ForegroundColor Yellow
+     Write-Host "*******************************************************************************`n" -ForegroundColor Yellow
+      Start-Sleep -Seconds 3
+
+    foreach ($browser in $browsers) {
+        # Comprobar si el navegador está en ejecución
+        $browserProcesses = Get-Process -Name $browser -ErrorAction SilentlyContinue
+
+        if ($browserProcesses) {
+           Write-Host "$browser is running. Proceeding to close it..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 2
+            
+            # Finalizar el proceso del navegador
+            Stop-Process -Name $browser -Force
+            
+           Write-Host "$browser has been closed." -ForegroundColor Green
+        } else {
+           Write-Host "$browser is not running." -ForegroundColor Cyan
+        }
+    }
+}
+
+# Llamar a la función
+CheckAndCloseBrowsers
+
+
+
+function FirefoxArtifacts {
+   Write-Host "Running task 23 of 26" -ForegroundColor Yellow
+    $usersDirectory = "C:\Users"
+    $DestinoBase = "$FolderCreation\Browsers\Firefox"
+
+    # Listado de directorio de usuarios en C:\Users
+    $userDirectories = Get-ChildItem -Path $usersDirectory -Directory
+
+    foreach ($userDir in $userDirectories) {
+        $userName = $userDir.Name
+        
+        # Compruebo si Firefox existe
+        if (Test-Path "C:\Users\$userName\AppData\Roaming\Mozilla\Firefox") {
+           Write-Host "Collecting Firefox's Sqlite files for $userName...`n" -ForegroundColor Cyan
+
+            # Verifica si el directorio de perfiles de Firefox existe
+            $firefoxProfilesPath = "C:\Users\$userName\AppData\Roaming\Mozilla\Firefox\Profiles"
+            if (Test-Path $firefoxProfilesPath) {
+                # Crear un directorio específico para cada usuario
+                $DestinoUsuario = Join-Path -Path $DestinoBase -ChildPath $userName
+                New-Item -Path $DestinoUsuario -ItemType Directory -Force | Out-Null
+
+                # Copiar archivos SQLite
+                Get-ChildItem -Path $firefoxProfilesPath -Recurse -Filter *.sqlite -ErrorAction SilentlyContinue | 
+                Where-Object { $_.BaseName -in @('cookies', 'formhistory', 'permissions', 'places', 'protections', 'storage', 'webappsstore') } | 
+                ForEach-Object {
+                    Copy-Item -Path $_.FullName -Destination "$DestinoUsuario\$($_.Name)"
+                }
+            } else {
+               Write-Host "No Firefox's profile found for $userName" -ForegroundColor Red
+            }
+        } else {
+           Write-Host "Firefox isn't installed for $userName" -ForegroundColor Red
+        }
+    }
+}
+FirefoxArtifacts
+
+function OperaArtifacts {
+   Write-Host "Running task 24 of 26" -ForegroundColor Yellow
+    $usersDirectory = "C:\Users"
+    $DestinoBase = "$FolderCreation\Browsers\Opera"
+
+    # Listado de directorio de usuarios en C:\Users
+    $userDirectories = Get-ChildItem -Path $usersDirectory -Directory
+
+    foreach ($userDir in $userDirectories) {
+        $userName = $userDir.Name
+        
+        # Compruebo si Firefox existe
+        if (Test-Path "C:\Users\$userName\AppData\Roaming\Opera Software\") {
+           Write-Host "Collecting Opera's files for $userName...`n"  -ForegroundColor Green
+
+            # Verifica si el directorio de perfiles de Firefox existe
+            $OperaProfilesPath = "C:\Users\$userName\AppData\Roaming\Opera Software\Opera Stable\Default"
+            if (Test-Path $OperaProfilesPath) {
+                # Crear un directorio específico para cada usuario
+                $DestinoUsuario = Join-Path -Path $DestinoBase -ChildPath $userName
+                New-Item -Path $DestinoUsuario -ItemType Directory -Force | Out-Null
+
+                # Copiar archivos dat
+                Get-ChildItem -Path $OperaProfilesPath -Recurse  -ErrorAction SilentlyContinue | 
+                Where-Object { $_.BaseName -in @('Bookmarks', 'Favicons', 'History', 'Visited Links') } | 
+                ForEach-Object {
+                    Copy-Item -Path $_.FullName -Destination "$DestinoUsuario\$($_.Name)"
+                }
+                #Cookie
+                Copy-Item -Path "$OperaProfilesPath\Network\Cookies" -Destination $DestinoUsuario -Force -Recurse
+                #cache
+                Copy-Item -Path "$EdgeProfilesPath\Cache" -Destination $DestinoUsuario -Force -Recurse
+            } else {
+               Write-Host "No Opera's profile found for $userName" -ForegroundColor Green
+            }
+        } else {
+           Write-Host "Opera isn't installed for $userName" -ForegroundColor Green
+        }
+    }
+}
+
+
+OperaArtifacts
+
+
+function EdgeArtifacts {
+   Write-Host "Running task 25 of 26" -ForegroundColor Yellow
+    $usersDirectory = "C:\Users"
+    $DestinoBase = "$FolderCreation\Browsers\Edge"
+
+    # Listado de directorio de usuarios en C:\Users
+    $userDirectories = Get-ChildItem -Path $usersDirectory -Directory
+
+    foreach ($userDir in $userDirectories) {
+        $userName = $userDir.Name
+        
+        # Compruebo si Firefox existe
+        if (Test-Path "C:\Users\$userName\AppData\Local\Microsoft\") {
+           Write-Host "Collecting Edge's files for $userName...`n" -ForegroundColor Cyan
+
+            # Verifica si el directorio de perfiles de Firefox existe
+            $EdgeProfilesPath = "C:\Users\$userName\AppData\Local\Microsoft\Edge\User Data\Default"
+            if (Test-Path $EdgeProfilesPath) {
+                # Crear un directorio específico para cada usuario
+                $DestinoUsuario = Join-Path -Path $DestinoBase -ChildPath $userName
+                New-Item -Path $DestinoUsuario -ItemType Directory -Force | Out-Null
+
+                # Copiar archivos
+                Get-ChildItem -Path $EdgeProfilesPath -Recurse  -ErrorAction SilentlyContinue | 
+                Where-Object { $_.BaseName -in @('Bookmarks', 'Favicons', 'History', 'Visited Links') } | 
+                ForEach-Object {
+                    Copy-Item -Path $_.FullName -Destination "$DestinoUsuario\$($_.Name)"
+                }
+                #Cooke
+                Copy-Item -Path "$EdgeProfilesPath\Network\Cookies" -Destination $DestinoUsuario -Force -Recurse
+                #cache
+                Copy-Item -Path "$EdgeProfilesPath\Cache" -Destination $DestinoUsuario -Force -Recurse
+
+            } else {
+               Write-Host "No Edge's profile found for $userName" -ForegroundColor Red
+            }
+        } else {
+           Write-Host "Edge isn't installed for $userName `n" -ForegroundColor Red
+        }
+    }
+}
+EdgeArtifacts
+
+function ChromeArtifacts {
+    Write-Log -Level "INFO" -Message "Collecting Google Chrome data..."
+    $OutputPath = "$FolderCreation\Browsers\Chrome"
+    New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+
+    # Buscar perfiles de Chrome
+    $ChromeProfilesPath = Join-Path -Path $env:LOCALAPPDATA -ChildPath "Google\Chrome\User Data"
+    if (Test-Path -Path $ChromeProfilesPath) {
+        Write-Log -Level "INFO" -Message "Found Chrome User Data directory: '$ChromeProfilesPath'"
+        $ProfileDirectories = Get-ChildItem -Path $ChromeProfilesPath -Directory -Filter "Profile*"
+
+        if ($ProfileDirectories) {
+            Write-Log -Level "INFO" -Message "Found Chrome profiles:"
+            foreach ($Profile in $ProfileDirectories) {
+                Write-Log -Level "INFO" -Message " - $($Profile.Name)"
+                $ProfileOutputPath = Join-Path -Path $OutputPath -ChildPath $Profile.Name
+                New-Item -Path $ProfileOutputPath -ItemType Directory -Force | Out-Null
+
+                # Copiar archivos relevantes
+                $FilesToCopy = @(
+                    "Bookmarks",
+                    "History",
+                    "Login Data",
+                    "Cookies",
+                    "Preferences",
+                    "Web Data"
+                    
+                )
+                foreach ($File in $FilesToCopy) {
+                    $SourceFilePath = Join-Path -Path $Profile.FullName -ChildPath $File
+                    $DestinationFilePath = Join-Path -Path $ProfileOutputPath -ChildPath "$File.db" # Guardar como .db para claridad
+                    if (Test-Path -Path $SourceFilePath) {
+                        try {
+                            Copy-Item -Path $SourceFilePath -Destination $DestinationFilePath -Force
+                            Write-Log -Level "INFO" -Message "Copied '$File' from '$($Profile.Name)' profile."
+                        } catch {
+                            Write-Log -Level "WARNING" -Message "Error copying '$File' from '$($Profile.Name)' profile: $($_.Exception.Message)"
+                        }
+                    } else {
+                        Write-Log -Level "DEBUG" -Message "File '$File' not found in '$($Profile.Name)' profile."
+                    }
+                }
+            }
+        } else {
+            Write-Log -Level "WARNING" -Message "No Chrome profiles found."
+        }
+    } else {
+        Write-Log -Level "WARNING" -Message "Google Chrome User Data directory not found at '$ChromeProfilesPath'."
+    }
+    Write-Log -Level "INFO" -Message "Google Chrome data collection complete."
+}
+
+function Get-RdpConnectios{
+ $RawEvents = Get-WinEvent -LogName "Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational" | `
+        Where-Object { $_.Id -eq 1149 }
+
+    $RawEvents | ForEach-Object `
+    {  
+        if ($_.Properties.Count -lt 3)
+        {
+            Write-Warning "Event record missing expected fields. Skipping extended processing."
+            $_ | Select-Object -Property TimeCreated, LogName, Id, Version, ProcessId, ThreadId, MachineName, UserId
+            continue
+        }
+
+        $User = $_.Properties[0].Value
+        $Domain = $_.Properties[1].Value
+        $SourceIp = $_.Properties[2].Value
+
+        $NormalizedUser = ("{1}\{0}" -f $User, $Domain)
+
+        $Message = $_.Message.Split("`n")[0]
+
+        $PropertyBag = @{
+            TimeCreated = $_.TimeCreated;
+            LogName = $_.LogName;
+            Id = $_.Id;
+            Version = $_.Version;
+            ProcessId = $_.ProcessId;
+            ThreadId = $_.ThreadId;
+            MachineNae = $_.MachineName;
+            UserId = $_.UserId;
+            UserName = $NormalizedUser;
+            SourceIp = $SourceIp;
+            Message = $Message
+        }
+
+        $o = New-Object -TypeName PSCustomObject -Property $PropertyBag
+        $o
+    } > "$FolderCreation\EventsLogs\RDP_Connections.txt"
+
+}
+Get-RdpConnectios
+
 function Zip-Results {
-    Write-Host "Running task 20 of 20" -ForegroundColor Yellow
-    Write-Host "Write results to $FolderCreation.zip...`n"
-    Compress-Archive -Force -LiteralPath $FolderCreation -DestinationPath "$FolderCreation.zip"
-    Remove-Item -Path $FolderCreation -Recurse
+   Write-Host "Running task 26 of 26" -ForegroundColor Yellow
+   Write-Host "Write results to $FolderCreation.zip...`n"
+   Compress-Archive -Force -LiteralPath $FolderCreation -DestinationPath "$FolderCreation.zip"
+   # Remove-Item -Path $FolderCreation -Recurse
 }
 
 Zip-Results
 
-Write-Host "===============================================================================`n" -ForegroundColor Yellow
-Write-Host "                              All tasks done                                   `n" -ForegroundColor Yellow
-Write-Host "                      Good luck in your investigation!!                        `n" -ForegroundColor Yellow
-Write-Host "`n"
-Write-Host "PowerTriage Github: https://github.com/jdangosto - Jesus Angosto (jdangosto)   `n" -ForegroundColor Yellow
-Write-Host "===============================================================================`n" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "===============================================================================`n" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "                              All tasks done                                   `n" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "                      Good luck in your investigation!!                        `n" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "`n"
+WriteLog -Level "INFO" Write-Host "PowerTriage Github: https://github.com/jdangosto - Jesus Angosto (jdangosto)   `n" -ForegroundColor Yellow
+WriteLog -Level "INFO" Write-Host "===============================================================================`n" -ForegroundColor Yellow
