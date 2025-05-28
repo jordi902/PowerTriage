@@ -46,4 +46,9 @@ The script can be excuted by running the following command.
 or
 ```Powershell.exe -ExecutionPolicy Bypass .\PowerTriage.ps1```
 
+If you still have execution problems, you can open the Powershell ise application as administrator and in a new file paste the entire Powertriage.PS1 code and execute it, that will not fail
+
+# EDR/XDR Usage
+
+If you are going to use the script from a Live Response console through an EDR/XDR system, you must comment on the corresponding line (this line has a comment for it)
 
